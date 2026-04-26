@@ -782,12 +782,15 @@ async function handleChoice(choice){
       </div>
       <div style="color:#888;font-weight:700;">Dispatching to <strong>${currentUser.email}</strong> 🕊️</div>
     </div>`;
-
+  // ── GIF attachment: yes_gif.gif → "Yes" case | no_gif.gif → "No" case ──
+  const gifAttachment = isYes
+  ? { filename: "celebration.gif", path: "./yes_gif.gif", cid: "coupon-gif" }
+  : { filename: "invitation.gif",  path: "./no_gif.gif",  cid: "coupon-gif" };
   // ── EMAIL 1: Invite → logged-in user's email ──
   const friendEmail = currentUser.email;   // e.g. bijoylaxmichoudhury0105@gmail.com
   const coupon = isYes
-    ? `🎉 Congratulations, ${currentUser.name}!\n\nYou have won a free coupon for dinner party at:\n\n📍 212, Sarat Bose Road, Subhasnagar, Dum Dum Cantonment\n\n⏰ Please note — Gate will be open 5:00 PM IST onwards.\nIf you come before that, ENTER AT YOUR OWN RISK due to toooo high temperature outside and inside our flat! 🌡️🔥\n\nSee you soon! 🥳`
-    : `😏 Unfortunately, ${currentUser.name}…\n\nYou have STILL won a free coupon for dinner party at:\n\n📍 212, Sarat Bose Road, Subhasnagar, Dum Dum Cantonment\n\n⏰ Please note — Gate will be open 5:00 PM IST onwards.\nIf you come before that, ENTER AT YOUR OWN RISK due to toooo high temperature outside and inside our flat! 🌡️🔥\n\nWe'll be waiting! 😉`;
+    ? `🎉 Congratulations, ${currentUser.name}!\n\nYou have won a free coupon for dinner party at:\n\n📍 208, Balaka Natun Bazar, Manasipara, North Dumdum, Kolkata, West Bengal 700065\n\n⏰ Please note — Gate will be open 5:00 PM IST onwards.\nIf you come before that, ENTER AT YOUR OWN RISK due to toooo high temperature outside and inside our flat! 🌡️🔥\n\nSee you soon! 🥳`
+    : `😏 Unfortunately, ${currentUser.name}…\n\nYou have STILL won a free coupon for dinner party at:\n\n📍 208, Balaka Natun Bazar, Manasipara, North Dumdum, Kolkata, West Bengal 700065\n\n⏰ Please note — Gate will be open 5:00 PM IST onwards.\nIf you come before that, ENTER AT YOUR OWN RISK due to toooo high temperature outside and inside our flat! 🌡️🔥\n\nWe'll be waiting! 😉`;
 
   const friendSubj = isYes
     ? `🎉 You're Coming to Biju's Birthday Bash! Here's Your Coupon!`
@@ -835,7 +838,7 @@ async function handleChoice(choice){
   try {
     const res = await emailjs.send(KEYS.svc, KEYS.tpl, {
       to_email : HOST_EMAIL,
-      to_name  : 'Biju (Host)',
+      to_name  : 'Bijoylaxmi (Host)',
       subject  : `PartyPop RSVP Update — ${responses.length} response(s)`,
       message  : hostMsg
     });
@@ -855,10 +858,10 @@ async function handleChoice(choice){
 
 function showResultScreen(isYes, friendOk, hostOk, friendErr, hostErr, friendEmail){
   const emoji = isYes ? '🎉🥳🎊' : '😅😬🎈';
-  const title = isYes ? "Invite is sent to your email" : "Still invite is sent to you email...Do you really think you have the option to choose NO?😏";
+  const title = isYes ? "Invite is sent to your email " : "Still invite is sent to you email...Do you really think you have the option to choose NO?😏";
   const msg   = isYes
-    ? "Great choice! Biju is already doing happy dances! 💃"
-    : "We already booked your plate. Guess you gotta come now 😏";
+    ? "Great choice! Please check your mail for further details.💃"
+    : "Please check your mail for further details. 😏";
 
   // Detect the "both sent but wrong address" problem
   const bothSentSameAddr = friendOk && hostOk && friendEmail === HOST_EMAIL;
