@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PartyPop 🎉</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&family=Boogaloo&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<style>
+  :root {
+    --yellow: #FFD93D;
+    --pink: #FF6B9D;
+    --purple: #9B59B6;
+    --teal: #00C9A7;
+    --orange: #FF6B35;
+    --blue: #4ECDC4;
+    --dark: #1A0A2E;
+    --card-bg: rgba(255,255,255,0.96);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family:'Nunito',sans-serif;
+    background:var(--dark);
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+
+  /* ── CONFETTI ── */
+  .bg-canvas { position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden; }
+  .confetti-piece {
+    position:absolute; width:10px; height:10px; border-radius:2px;
+    animation:confettiFall linear infinite; opacity:.7;
+  }
+  @keyframes confettiFall {
+    0%   { transform:translateY(-20px) rotate(0deg);   opacity:.8; }
+    100% { transform:translateY(110vh) rotate(720deg); opacity:0;  }
+  }
+  .balloon { position:fixed; pointer-events:none; z-index:5; animation:floatUp linear infinite; opacity:.55; }
+  @keyframes floatUp {
+    0%   { transform:translateY(110vh) rotate(-10deg); opacity:0;   }
+    10%  { opacity:.55; }
+    90%  { opacity:.55; }
+    100% { transform:translateY(-20vh) rotate(10deg);  opacity:0;   }
+  }
+
+  /* ── SCREENS ── */
+  .screen { display:none; min-height:100vh; position:relative; z-index:10;
+            align-items:center; justify-content:center; padding:16px 8px; }
+  .screen.active { display:flex; }
+  #auth-screen, #setup-screen, #success-screen { flex-direction:column; }
+
+  /* ── LOGO ── */
+  .app-logo {
+    font-family:'Fredoka One',cursive; font-size:3.8rem; color:var(--yellow);
+    text-align:center; text-shadow:4px 4px 0 var(--pink),8px 8px 0 var(--purple);
+    animation:logoWiggle 2s ease-in-out infinite; margin-bottom:6px;
+  }
+  .app-tagline {
+    font-family:'Boogaloo',cursive; font-size:1.25rem; color:var(--teal);
+    text-align:center; margin-bottom:28px; letter-spacing:2px;
+  }
+  @keyframes logoWiggle {
+    0%,100% { transform:rotate(-2deg) scale(1);    }
+    50%      { transform:rotate(2deg)  scale(1.05); }
+  }
+
+  /* ── CARDS ── */
+  .card {
+    background:var(--card-bg); border-radius:28px; width:100%;
+    position:relative; overflow:hidden;
+    box-shadow:0 20px 60px rgba(0,0,0,.4);
+  }
+  .card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:6px;
+    background:linear-gradient(90deg,var(--pink),var(--yellow),var(--teal),var(--purple),var(--pink));
+    background-size:200%; animation:rainbowBar 3s linear infinite;
+  }
+  @keyframes rainbowBar { 0%{background-position:0%} 100%{background-position:200%} }
+  @keyframes cardPop {
+    0%   { opacity:0; transform:scale(.7) translateY(40px); }
+    100% { opacity:1; transform:scale(1) translateY(0);     }
+  }
+
+  /* ── AUTH ── */
+  .auth-card { max-width:440px; padding:40px 44px;
+    box-shadow:0 20px 60px rgba(0,0,0,.4),0 0 0 4px var(--pink),0 0 0 8px var(--yellow);
+    animation:cardPop .5s cubic-bezier(.175,.885,.32,1.275) both; }
+  .auth-tabs { display:flex; gap:8px; margin-bottom:26px;
+    background:#f0e8ff; border-radius:14px; padding:5px; }
+  .auth-tab { flex:1; padding:10px; border:none; border-radius:10px;
+    font-family:'Nunito',sans-serif; font-size:1rem; font-weight:800;
+    cursor:pointer; transition:all .3s; background:transparent; color:#888; }
+  .auth-tab.active { background:var(--purple); color:#fff;
+    box-shadow:0 4px 15px rgba(155,89,182,.4); transform:scale(1.03); }
+
+  .form-group { margin-bottom:16px; }
+  .form-label { display:block; font-weight:800; font-size:.88rem; color:var(--dark);
+    margin-bottom:5px; text-transform:uppercase; letter-spacing:1px; }
+  .form-input {
+    width:100%; padding:12px 16px; border:3px solid #e8d5ff; border-radius:14px;
+    font-family:'Nunito',sans-serif; font-size:1rem; font-weight:600;
+    outline:none; transition:all .3s; background:#fdf8ff; color:var(--dark);
+  }
+  .form-input:focus { border-color:var(--pink); box-shadow:0 0 0 4px rgba(255,107,157,.15); transform:scale(1.01); }
+
+  .btn-primary {
+    width:100%; padding:14px; border:none; border-radius:16px; cursor:pointer;
+    font-family:'Fredoka One',cursive; font-size:1.25rem; letter-spacing:1px;
+    transition:all .3s; margin-top:6px; color:#fff;
+    background:linear-gradient(135deg,var(--pink),var(--purple));
+    box-shadow:0 6px 20px rgba(255,107,157,.4);
+  }
+  .btn-primary:hover { transform:translateY(-3px) scale(1.02); box-shadow:0 10px 30px rgba(255,107,157,.5); }
+  .btn-primary:disabled { opacity:.6; cursor:not-allowed; transform:none; }
+
+  .err { color:#e74c3c; font-size:.84rem; font-weight:700; margin-top:5px; display:none; }
+  .suc { color:var(--teal);  font-size:.84rem; font-weight:700; margin-top:5px; display:none; }
+
+  .forgot-link { display:inline-block; margin-top:10px; font-size:.88rem;
+    font-weight:800; color:var(--purple); cursor:pointer; transition:all .2s; }
+  .forgot-link:hover { color:var(--pink); text-decoration:underline; }
+
+  /* ── SETUP WIZARD ── */
+  .setup-card { max-width:520px; padding:36px 40px; animation:cardPop .5s both; }
+  .setup-step { display:none; }
+  .setup-step.active { display:block; }
+  .setup-emoji { font-size:3rem; text-align:center; margin-bottom:10px; animation:emojiDance 1s ease-in-out infinite; }
+  @keyframes emojiDance {
+    0%,100% { transform:rotate(-10deg) scale(1);    }
+    50%      { transform:rotate(10deg)  scale(1.1); }
+  }
+  .setup-title { font-family:'Fredoka One',cursive; font-size:1.7rem; color:var(--dark); text-align:center; margin-bottom:6px; }
+  .setup-subtitle { font-size:.95rem; color:#666; font-weight:600; text-align:center; margin-bottom:20px; line-height:1.6; }
+  .step-badge {
+    display:inline-flex; align-items:center; justify-content:center;
+    width:28px; height:28px; border-radius:50%;
+    background:var(--purple); color:#fff; font-weight:900; font-size:.85rem;
+    margin-right:8px; flex-shrink:0;
+  }
+  .instruction-block {
+    background:#f8f0ff; border-left:4px solid var(--purple);
+    border-radius:0 12px 12px 0; padding:14px 16px; margin-bottom:14px;
+    font-size:.9rem; font-weight:700; color:#444; line-height:1.7;
+    display:flex; align-items:flex-start; gap:4px;
+  }
+  .code-inline {
+    background:#1A0A2E; color:var(--yellow); padding:2px 8px;
+    border-radius:6px; font-family:monospace; font-size:.88rem;
+  }
+  .link-btn {
+    display:inline-block; padding:8px 18px; border-radius:50px;
+    background:linear-gradient(135deg,var(--teal),#00a896); color:#fff;
+    font-weight:800; font-size:.9rem; text-decoration:none; margin-bottom:4px;
+    transition:all .2s;
+  }
+  .link-btn:hover { transform:scale(1.05); }
+  .nav-row { display:flex; gap:10px; margin-top:6px; }
+  .btn-sec {
+    flex:1; padding:12px; border:3px solid var(--purple); border-radius:14px;
+    background:transparent; color:var(--purple); font-family:'Nunito',sans-serif;
+    font-weight:800; font-size:1rem; cursor:pointer; transition:all .2s;
+  }
+  .btn-sec:hover { background:var(--purple); color:#fff; }
+  .btn-pri-sm {
+    flex:2; padding:12px; border:none; border-radius:14px; cursor:pointer;
+    background:linear-gradient(135deg,var(--pink),var(--purple)); color:#fff;
+    font-family:'Fredoka One',cursive; font-size:1.1rem; transition:all .2s;
+    box-shadow:0 4px 15px rgba(155,89,182,.35);
+  }
+  .btn-pri-sm:hover { transform:translateY(-2px); }
+
+  /* ── CALENDAR ── */
+  #calendar-screen { flex-direction:column; }
+  .cal-header { text-align:center; margin-bottom:18px; }
+  .cal-header h1 { font-family:'Fredoka One',cursive; font-size:2.4rem; color:var(--yellow); text-shadow:3px 3px 0 var(--pink); }
+  .welcome-msg { font-family:'Boogaloo',cursive; font-size:1.25rem; color:var(--teal); margin-top:5px; }
+  .hint-msg { font-size:.95rem; color:#FFD93D; margin-top:7px; font-weight:700; animation:hintPulse 1.5s ease-in-out infinite; }
+  @keyframes hintPulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  .calendar-card { max-width:560px; padding:20px 14px; animation:cardPop .5s both;
+    box-shadow:0 20px 60px rgba(0,0,0,.4),0 0 0 4px var(--yellow),0 0 0 8px var(--orange);
+    width:100%; box-sizing:border-box; }
+  .cal-month-title { font-family:'Fredoka One',cursive; font-size:1.5rem; color:var(--purple); text-align:center; margin-bottom:10px; }
+  .cal-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:3px; width:100%; }
+  .cal-day-header { text-align:center; font-weight:900; font-size:.62rem; color:var(--purple);
+    padding:4px 1px; text-transform:uppercase; letter-spacing:.5px; }
+  .cal-day { aspect-ratio:1; display:flex; align-items:center; justify-content:center;
+    border-radius:8px; font-weight:800; font-size:clamp(.55rem, 2.5vw, .85rem); color:#555; transition:all .2s; min-width:0; overflow:hidden; }
+  .cal-day.empty  { background:transparent; }
+  .cal-day.normal { background:#f8f0ff; color:#666; cursor:default; }
+  .cal-day.normal:hover { background:#ede0ff; transform:scale(1.05); }
+  .cal-day.birthday {
+    background:linear-gradient(135deg,var(--yellow),var(--orange)); color:var(--dark);
+    cursor:pointer; border:3px solid var(--pink); flex-direction:column; gap:0;
+    font-weight:900; animation:birthdayPop 1s ease-in-out infinite;
+    box-shadow:0 4px 15px rgba(255,107,53,.5);
+  }
+  .cal-day.birthday:hover { transform:scale(1.15) rotate(3deg); box-shadow:0 8px 25px rgba(255,107,53,.7); }
+  @keyframes birthdayPop {
+    0%,100% { transform:scale(1);    box-shadow:0 4px 15px rgba(255,107,53,.5); }
+    50%      { transform:scale(1.08); box-shadow:0 8px 25px rgba(255,107,53,.8); }
+  }
+  .bday-num   { font-family:'Fredoka One',cursive; font-size:clamp(.7rem, 3vw, 1.15rem); line-height:1; }
+  .bday-emojis { font-size:clamp(.4rem, 1.8vw, .72rem); line-height:1.2; }
+
+  .logout-btn {
+    position:fixed; top:18px; right:18px; background:var(--pink); color:#fff;
+    border:none; padding:9px 18px; border-radius:50px; font-family:'Nunito',sans-serif;
+    font-weight:800; cursor:pointer; font-size:.88rem; z-index:100;
+    box-shadow:0 4px 15px rgba(255,107,157,.4); transition:all .2s;
+  }
+  .logout-btn:hover { transform:scale(1.05); }
+
+  /* ── RSVP MODAL ── */
+  .modal-overlay {
+    display:none; position:fixed; inset:0;
+    background:rgba(26,10,46,.87); backdrop-filter:blur(8px);
+    z-index:200; align-items:center; justify-content:center; padding:20px;
+  }
+  .modal-overlay.active { display:flex; }
+  .modal-box { max-width:480px; padding:38px 34px; text-align:center;
+    animation:cardPop .4s cubic-bezier(.175,.885,.32,1.275) both;
+    box-shadow:0 20px 60px rgba(0,0,0,.5),0 0 0 4px var(--yellow); }
+  .modal-emojis { font-size:3.2rem; margin-bottom:10px; animation:emojiDance .8s ease-in-out infinite; }
+  .modal-title  { font-family:'Fredoka One',cursive; font-size:1.75rem; color:var(--dark); margin-bottom:7px; }
+  .modal-sub    { font-size:.95rem; color:#666; margin-bottom:24px; font-weight:600; line-height:1.6; }
+  .modal-options { display:flex; flex-direction:column; gap:12px; }
+  .modal-btn {
+    padding:16px 22px; border:none; border-radius:16px; font-family:'Nunito',sans-serif;
+    font-weight:800; font-size:.97rem; cursor:pointer; transition:all .3s;
+    line-height:1.4; text-align:left; display:flex; align-items:center; gap:12px; color:#fff;
+  }
+  .modal-btn .bi { font-size:1.7rem; flex-shrink:0; }
+  .modal-btn.yes { background:linear-gradient(135deg,var(--teal),#00a896); box-shadow:0 6px 20px rgba(0,201,167,.35); }
+  .modal-btn.yes:hover { transform:translateY(-3px) scale(1.02); }
+  .modal-btn.no  { background:linear-gradient(135deg,#ff9a3c,var(--orange)); box-shadow:0 6px 20px rgba(255,107,53,.35); }
+  .modal-btn.no:hover  { transform:translateY(-3px) scale(1.02); }
+
+  /* ── SUCCESS ── */
+  .success-card { max-width:500px; padding:46px 40px; text-align:center;
+    box-shadow:0 20px 60px rgba(0,0,0,.4),0 0 0 4px var(--teal); animation:cardPop .5s both; }
+  .success-emoji { font-size:4.5rem; animation:emojiDance 1s ease-in-out infinite; margin-bottom:14px; }
+  .success-title { font-family:'Fredoka One',cursive; font-size:2rem; color:var(--purple); margin-bottom:10px; }
+  .success-text  { font-size:1rem; color:#555; line-height:1.75; font-weight:600; margin-bottom:20px; }
+  .info-box {
+    border-radius:16px; padding:18px 20px; font-size:.9rem; color:#444;
+    line-height:1.75; font-weight:700; text-align:left; margin-bottom:18px;
+  }
+  .info-box.green { background:linear-gradient(135deg,#f0fff8,#e8fff5); border:2px solid var(--teal); }
+  .info-box.orange{ background:linear-gradient(135deg,#fff8f0,#fff0e8); border:2px solid var(--orange); }
+  .btn-back {
+    padding:13px 30px; border:none; border-radius:50px; cursor:pointer;
+    font-family:'Fredoka One',cursive; font-size:1.15rem; color:#fff; transition:all .3s;
+    background:linear-gradient(135deg,var(--pink),var(--purple));
+    box-shadow:0 6px 20px rgba(155,89,182,.4);
+  }
+  .btn-back:hover { transform:scale(1.05); }
+
+  /* ── FORGOT PW MODAL ── */
+  .fp-overlay {
+    display:none; position:fixed; inset:0;
+    background:rgba(26,10,46,.9); backdrop-filter:blur(10px);
+    z-index:300; align-items:center; justify-content:center; padding:20px;
+  }
+  .fp-overlay.active { display:flex; }
+  .fp-box { max-width:400px; padding:36px 32px; text-align:center;
+    animation:cardPop .4s cubic-bezier(.175,.885,.32,1.275) both;
+    box-shadow:0 20px 60px rgba(0,0,0,.5),0 0 0 4px var(--purple),0 0 0 8px var(--yellow); }
+  .fp-step { display:none; }
+  .fp-step.active { display:block; }
+  .fp-emoji { font-size:3rem; margin-bottom:8px; animation:emojiDance 1s ease-in-out infinite; }
+  .fp-title { font-family:'Fredoka One',cursive; font-size:1.6rem; color:var(--dark); margin-bottom:6px; }
+  .fp-sub   { font-size:.92rem; color:#777; font-weight:600; margin-bottom:18px; line-height:1.5; }
+  .fp-reveal {
+    background:linear-gradient(135deg,#f0e8ff,#fce8ff); border:3px dashed var(--purple);
+    border-radius:14px; padding:16px 18px; margin:14px 0;
+    font-size:1.4rem; font-family:'Fredoka One',cursive; color:var(--purple);
+    letter-spacing:3px; word-break:break-all;
+  }
+  .fp-reveal::before { content:'🔓 Your Password'; display:block; font-size:.72rem;
+    font-family:'Nunito',sans-serif; font-weight:900; color:#aaa; letter-spacing:1px;
+    text-transform:uppercase; margin-bottom:6px; }
+  .fp-err { color:#e74c3c; font-size:.84rem; font-weight:700; margin-bottom:8px; display:none; }
+  .btn-fp { width:100%; padding:12px; border:none; border-radius:13px; cursor:pointer;
+    background:linear-gradient(135deg,var(--purple),var(--pink)); color:#fff;
+    font-family:'Fredoka One',cursive; font-size:1.1rem; margin-bottom:9px;
+    box-shadow:0 5px 18px rgba(155,89,182,.35); transition:all .2s; }
+  .btn-fp:hover { transform:translateY(-2px); }
+  .btn-fp-ghost { background:none; border:none; color:#aaa; font-family:'Nunito',sans-serif;
+    font-weight:700; font-size:.88rem; cursor:pointer; transition:color .2s; padding:5px; }
+  .btn-fp-ghost:hover { color:var(--pink); }
+
+  /* ── TOAST ── */
+  .toast {
+    position:fixed; bottom:28px; left:50%;
+    transform:translateX(-50%) translateY(100px);
+    background:var(--dark); color:#fff; padding:13px 26px; border-radius:50px;
+    font-weight:700; font-size:.92rem; z-index:500; border:2px solid var(--yellow);
+    transition:transform .4s cubic-bezier(.175,.885,.32,1.275); white-space:nowrap;
+    box-shadow:0 8px 30px rgba(0,0,0,.4);
+  }
+  .toast.show { transform:translateX(-50%) translateY(0); }
+
+  /* ── SPINNER ── */
+  .spinner { display:inline-block; width:18px; height:18px;
+    border:3px solid rgba(255,255,255,.3); border-top-color:#fff;
+    border-radius:50%; animation:spin .8s linear infinite;
+    margin-right:7px; vertical-align:middle; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  /* ── EMAILJS CONFIG BANNER ── */
+  .config-warning {
+    background:linear-gradient(135deg,#fff3cd,#ffeaa7);
+    border:2px solid #f39c12; border-radius:16px; padding:14px 18px;
+    font-size:.88rem; font-weight:700; color:#856404; margin-bottom:18px;
+    display:none; line-height:1.6;
+  }
+
+  /* ── MOBILE RESPONSIVE ── */
+  @media (max-width: 480px) {
+    .app-logo { font-size:2.6rem; }
+    .app-tagline { font-size:1rem; margin-bottom:18px; }
+    .auth-card { padding:28px 20px; }
+    .calendar-card { padding:16px 10px; }
+    .cal-grid { gap:2px; }
+    .cal-day-header { font-size:.55rem; padding:3px 1px; letter-spacing:0; }
+    .cal-day { font-size:clamp(.5rem, 2vw, .72rem); border-radius:6px; }
+    .bday-num { font-size:clamp(.6rem, 2.8vw, .95rem); }
+    .bday-emojis { font-size:clamp(.35rem, 1.4vw, .55rem); }
+    .cal-month-title { font-size:1.2rem; margin-bottom:8px; }
+    .cal-header h1 { font-size:1.8rem; }
+    .welcome-msg { font-size:1rem; }
+    .hint-msg { font-size:.82rem; }
+    .logout-btn { top:10px; right:10px; padding:7px 13px; font-size:.78rem; }
+    .setup-card { padding:24px 18px; }
+    .success-card { padding:30px 20px; }
+    .modal-box { padding:28px 20px; }
+    .modal-title { font-size:1.4rem; }
+    .success-title { font-size:1.5rem; }
+  }
+  @media (max-width: 360px) {
+    .cal-day-header { font-size:.48rem; }
+    .cal-day { font-size:clamp(.45rem, 1.8vw, .65rem); }
+    .calendar-card { padding:12px 8px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── BACKGROUND ── -->
+<div class="bg-canvas" id="bgCanvas"></div>
+<div class="toast" id="toast"></div>
+
+<!-- ════════════════════════════════════════
+     SETUP WIZARD  (shown if keys not saved)
+     ════════════════════════════════════════ -->
+<div class="screen" id="setup-screen">
+  <div style="display:flex;flex-direction:column;align-items:center;width:100%;max-width:520px;">
+    <div class="app-logo">🎉 PartyPop 🎉</div>
+    <div class="app-tagline">✨ Setup your party email magic! ✨</div>
+    <div class="card setup-card">
+
+      <!-- STEP 1 -->
+      <div class="setup-step active" id="ss1">
+        <div class="setup-emoji">📬</div>
+        <div class="setup-title">Let's Make Emails Work!</div>
+        <div class="setup-subtitle">You need a FREE EmailJS account. It takes 3 minutes and lets PartyPop send real emails to your friends. No coding needed! 🥳</div>
+
+        <div class="instruction-block"><span class="step-badge">1</span>
+          <span>Go to <a href="https://www.emailjs.com" target="_blank" class="link-btn">emailjs.com</a> and click <strong>Sign Up Free</strong></span>
+        </div>
+        <div class="instruction-block"><span class="step-badge">2</span>
+          <span>After signing in, go to <strong>Email Services</strong> → <strong>Add New Service</strong> → choose <strong>Gmail</strong> → connect your Gmail account (e.g. <em>boochou0105@gmail.com</em>)</span>
+        </div>
+        <div class="instruction-block"><span class="step-badge">3</span>
+          <span>Note down your <strong>Service ID</strong> (looks like <code class="code-inline">service_xxxxxxx</code>)</span>
+        </div>
+        <div class="nav-row">
+          <button class="btn-pri-sm" onclick="goSetupStep(2)">Next → Create Template 📝</button>
+        </div>
+      </div>
+
+      <!-- STEP 2 -->
+      <div class="setup-step" id="ss2">
+        <div class="setup-emoji">📝</div>
+        <div class="setup-title">Create Email Template</div>
+        <div class="setup-subtitle">This step is the most important! Follow EXACTLY — the "To Email" field is where most people go wrong.</div>
+
+        <div class="instruction-block"><span class="step-badge">1</span>
+          <span>Go to <strong>Email Templates</strong> → <strong>Create New Template</strong></span>
+        </div>
+
+        <!-- Visual mockup of the template form -->
+        <div style="background:#1A0A2E;border-radius:14px;padding:14px 16px;margin-bottom:12px;font-size:.82rem;">
+          <div style="color:#aaa;font-weight:700;margin-bottom:10px;letter-spacing:1px;text-transform:uppercase;font-size:.72rem;">📋 Your EmailJS Template Should Look Like This:</div>
+          <div style="display:grid;gap:6px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="color:#FFD93D;font-weight:800;width:70px;flex-shrink:0;font-size:.8rem;">To Email</span>
+              <span style="background:#2d1a4a;border:2px solid #FF6B9D;border-radius:8px;padding:5px 10px;color:#FF6B9D;font-family:monospace;font-size:.85rem;flex:1;">{{to_email}}</span>
+              <span style="color:#00C9A7;font-size:1rem;">✅</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="color:#FFD93D;font-weight:800;width:70px;flex-shrink:0;font-size:.8rem;">Subject</span>
+              <span style="background:#2d1a4a;border:2px solid #9B59B6;border-radius:8px;padding:5px 10px;color:#c39bd3;font-family:monospace;font-size:.85rem;flex:1;">{{subject}}</span>
+              <span style="color:#00C9A7;font-size:1rem;">✅</span>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:8px;">
+              <span style="color:#FFD93D;font-weight:800;width:70px;flex-shrink:0;font-size:.8rem;padding-top:4px;">Body</span>
+              <span style="background:#2d1a4a;border:2px solid #9B59B6;border-radius:8px;padding:5px 10px;color:#c39bd3;font-family:monospace;font-size:.85rem;flex:1;">{{message}}</span>
+              <span style="color:#00C9A7;font-size:1rem;padding-top:4px;">✅</span>
+            </div>
+          </div>
+          <div style="margin-top:10px;color:#FF6B9D;font-size:.78rem;font-weight:800;">
+            ⚠️ The "To Email" box is a SEPARATE input at the top of the template — NOT inside the body text!
+          </div>
+        </div>
+
+        <div class="instruction-block" style="background:#fff3cd;border-left-color:#f39c12;">
+          <span style="font-size:1.2rem;">⚠️</span>
+          <span style="color:#856404;"><strong>Critical:</strong> The <strong>To Email</strong> field is a dedicated input box near the top of the template editor — look for it above the Subject line. Type <code style="background:#856404;color:#fff;padding:1px 5px;border-radius:4px;">{{to_email}}</code> exactly in that box. This is the #1 reason emails fail!</span>
+        </div>
+
+        <div class="instruction-block"><span class="step-badge">2</span>
+          <span>Click <strong>Save</strong> → note your <strong>Template ID</strong> (e.g. <code class="code-inline">template_xxxxxxx</code>)</span>
+        </div>
+        <div class="nav-row">
+          <button class="btn-sec" onclick="goSetupStep(1)">← Back</button>
+          <button class="btn-pri-sm" onclick="goSetupStep(3)">Next → Get Public Key 🔑</button>
+        </div>
+      </div>
+
+      <!-- STEP 3 -->
+      <div class="setup-step" id="ss3">
+        <div class="setup-emoji">🔑</div>
+        <div class="setup-title">Get Your Public Key</div>
+        <div class="setup-subtitle">Almost there! One last thing to grab from EmailJS.</div>
+
+        <div class="instruction-block"><span class="step-badge">1</span>
+          <span>In EmailJS dashboard, click your <strong>Account</strong> (top right) → <strong>Account Settings</strong></span>
+        </div>
+        <div class="instruction-block"><span class="step-badge">2</span>
+          <span>Find the <strong>Public Key</strong> section — copy that key (looks like <code class="code-inline">XXXXXXXXXXXXXXX</code>)</span>
+        </div>
+        <div class="nav-row">
+          <button class="btn-sec" onclick="goSetupStep(2)">← Back</button>
+          <button class="btn-pri-sm" onclick="goSetupStep(4)">Next → Enter Keys 🎯</button>
+        </div>
+      </div>
+
+      <!-- STEP 4: Enter Keys -->
+      <div class="setup-step" id="ss4">
+        <div class="setup-emoji">⚙️</div>
+        <div class="setup-title">Paste Your Keys</div>
+        <div class="setup-subtitle">Enter the three values from EmailJS. These are saved only in your browser — completely private!</div>
+
+        <div class="form-group">
+          <label class="form-label">🔧 EmailJS Public Key</label>
+          <input type="text" class="form-input" id="ejs-public" placeholder="e.g. XXXXXXXXXXXXXXX">
+        </div>
+        <div class="form-group">
+          <label class="form-label">📡 Service ID</label>
+          <input type="text" class="form-input" id="ejs-service" placeholder="e.g. service_abc1234">
+        </div>
+        <div class="form-group">
+          <label class="form-label">📋 Template ID</label>
+          <input type="text" class="form-input" id="ejs-template" placeholder="e.g. template_abc1234">
+        </div>
+        <div class="err" id="setup-err"></div>
+        <div class="nav-row">
+          <button class="btn-sec" onclick="goSetupStep(3)">← Back</button>
+          <button class="btn-pri-sm" onclick="saveAndLaunch()">🚀 Launch PartyPop!</button>
+        </div>
+        <p style="font-size:.78rem;color:#aaa;text-align:center;margin-top:14px;">
+          🔒 Keys stored locally in your browser only. Never sent anywhere except EmailJS.
+        </p>
+      </div>
+
+    </div>
+    <div style="color:rgba(255,255,255,.35);font-size:.75rem;margin-top:14px;text-align:center;">
+      Already set up? <span style="color:var(--teal);cursor:pointer;font-weight:700;" onclick="showScreen('auth-screen');checkConfigWarning();">Skip & Go to Login →</span>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     AUTH SCREEN
+     ════════════════════════════════════════ -->
+<div class="screen" id="auth-screen">
+  <div style="display:flex;flex-direction:column;align-items:center;width:100%;max-width:440px;">
+    <div class="app-logo">🎉 PartyPop 🎉</div>
+    <div class="app-tagline">✨ Life's too short for boring parties! ✨</div>
+    <div class="card auth-card">
+      <div class="auth-tabs">
+        <button class="auth-tab active" onclick="switchTab('login')">🔑 Login</button>
+        <button class="auth-tab"        onclick="switchTab('signup')">🎈 Sign Up</button>
+      </div>
+
+      <!-- Login -->
+      <div id="login-form">
+        <div class="form-group">
+          <label class="form-label">📧 Email Address</label>
+          <input type="email" class="form-input" id="login-email" placeholder="your@email.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">🔒 Password</label>
+          <input type="password" class="form-input" id="login-password" placeholder="••••••••">
+        </div>
+        <div class="err" id="login-err"></div>
+        <button class="btn-primary" onclick="handleLogin()">Let's Party! 🥳</button>
+        <div style="text-align:center;margin-top:12px;">
+          <span class="forgot-link" onclick="openFP()">🤔 Forgot Password? Oops!</span>
+        </div>
+      </div>
+
+      <!-- Signup -->
+      <div id="signup-form" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">😎 Your Name</label>
+          <input type="text" class="form-input" id="su-name" placeholder="Cool Party Person">
+        </div>
+        <div class="form-group">
+          <label class="form-label">📧 Email Address</label>
+          <input type="email" class="form-input" id="su-email" placeholder="your@email.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">🔒 Create Password</label>
+          <input type="password" class="form-input" id="su-pass" placeholder="Make it strong!">
+        </div>
+        <div class="err" id="su-err"></div>
+        <div class="suc" id="su-suc"></div>
+        <button class="btn-primary" onclick="handleSignup()">Join the Party! 🎊</button>
+      </div>
+    </div>
+    <div style="color:rgba(255,255,255,.15);font-size:.7rem;margin-top:14px;text-align:center;">
+      <span style="cursor:pointer;" onclick="goToSetup()" title="Admin: EmailJS Setup">⚙️</span>
+    </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     CALENDAR SCREEN
+     ════════════════════════════════════════ -->
+<div class="screen" id="calendar-screen">
+  <button class="logout-btn" onclick="logout()">👋 Logout</button>
+  <div style="display:flex;flex-direction:column;align-items:center;width:100%;max-width:560px;">
+    <div class="cal-header">
+      <h1>🎉 PartyPop 🎉</h1>
+      <div class="welcome-msg" id="welcome-msg">Welcome, Party Animal! 🦁</div>
+      <div class="hint-msg">👇 Something VERY important on May 1st… click it! 👇</div>
+    </div>
+    <div class="card calendar-card">
+      <div class="cal-month-title">🎉 May 2026 🎂</div>
+      <div class="cal-grid" id="cal-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     RSVP MODAL
+     ════════════════════════════════════════ -->
+<div class="modal-overlay" id="rsvp-modal">
+  <div class="card modal-box">
+    <div class="modal-emojis">🎂🎉🥳🎈</div>
+    <div class="modal-title">You're Invited!</div>
+    <div class="modal-sub">
+      <strong>Biju's Birthday Bash!</strong><br>
+      May 1st, 2026  🌟<br>
+      Are you willing to Participate? 😏
+    </div>
+    <div class="modal-options">
+      <button class="modal-btn yes" onclick="handleChoice('yes')">
+        <span class="bi">🎉</span>
+        <span>Option 1<br><small style="font-weight:600;opacity:.85;"></small></span>
+      </button>
+      <button class="modal-btn no" onclick="handleChoice('no')">
+        <span class="bi">😅</span>
+        <span style="font-size:.9rem;">Option 2<br><small style="font-weight:600;opacity:.85;"></small></span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     SUCCESS SCREEN
+     ════════════════════════════════════════ -->
+<div class="screen" id="success-screen">
+  <div class="card success-card" id="success-card"></div>
+</div>
+
+<!-- ════════════════════════════════════════
+     FORGOT PASSWORD MODAL
+     ════════════════════════════════════════ -->
+<div class="fp-overlay" id="fp-overlay">
+  <div class="card fp-box">
+    <div class="fp-step active" id="fp1">
+      <div class="fp-emoji">🧠💨</div>
+      <div class="fp-title">Brain Freeze?</div>
+      <div class="fp-sub">No worries! Enter your email and we'll dig up your password 🕵️</div>
+      <input type="email" class="form-input" id="fp-email" placeholder="your@email.com" style="margin-bottom:10px;">
+      <div class="fp-err" id="fp-err"></div>
+      <button class="btn-fp" onclick="handleFP1()">🔍 Find My Password!</button>
+      <button class="btn-fp-ghost" onclick="closeFP()">Nah, I remembered! 😅</button>
+    </div>
+    <div class="fp-step" id="fp2">
+      <div class="fp-emoji">🎉</div>
+      <div class="fp-title">Found It!</div>
+      <div class="fp-sub">Drumroll please… 🥁 Here's the password you totally remembered:</div>
+      <div class="fp-reveal" id="fp-pw-show">••••••</div>
+      <div style="font-size:.78rem;color:#aaa;font-weight:700;margin-bottom:14px;">📸 Screenshot this! Or write it on a sticky note 😬</div>
+      <button class="btn-fp" onclick="fpLogin()">🔑 Go Login Now!</button>
+      <button class="btn-fp-ghost" onclick="closeFP()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     JAVASCRIPT
+     ════════════════════════════════════════ -->
+<script>
+// ══════════════════════════════════════════
+// CONFIG — EmailJS keys hardcoded (no setup needed)
+// ══════════════════════════════════════════
+const EMAILJS_PUBLIC_KEY  = 'NeDXNl6KqS0Cq76Kd';
+const EMAILJS_SERVICE_ID  = 'service_zo7chgt';
+const EMAILJS_TEMPLATE_ID = 'template_n5smht7';
+
+const KEYS = {
+  get pub() { return EMAILJS_PUBLIC_KEY;  },
+  get svc() { return EMAILJS_SERVICE_ID;  },
+  get tpl() { return EMAILJS_TEMPLATE_ID; },
+  get ok()  { return true; },
+  save(p,s,t){ /* no-op: keys are hardcoded */ }
+};
+const HOST_EMAIL = 'boochou0105@gmail.com';
+
+// ── DATA ──
+let currentUser = null;
+function getUsers()    { try { return JSON.parse(localStorage.getItem('partypop_biju_users')    || '{}'); } catch(e){ return {}; } }
+function getResponses(){ try { return JSON.parse(localStorage.getItem('partypop_biju_responses') || '[]'); } catch(e){ return []; } }
+function saveUsers(u)  { localStorage.setItem('partypop_biju_users',     JSON.stringify(u)); }
+function saveResp(r)   { localStorage.setItem('partypop_biju_responses', JSON.stringify(r)); }
+
+// ── INIT — always show login screen to users ──
+window.addEventListener('DOMContentLoaded', () => {
+  buildConfetti();
+  buildBalloons();
+
+  // Always initialize EmailJS with hardcoded keys
+  emailjs.init(KEYS.pub);
+
+  // Always land on the auth screen — no setup needed
+  showScreen('auth-screen');
+});
+
+// ── SETUP WIZARD ──
+function goSetupStep(n){
+  document.querySelectorAll('.setup-step').forEach(s=>s.classList.remove('active'));
+  document.getElementById('ss'+n).classList.add('active');
+}
+function saveAndLaunch(){
+  const p = document.getElementById('ejs-public').value.trim();
+  const s = document.getElementById('ejs-service').value.trim();
+  const t = document.getElementById('ejs-template').value.trim();
+  const errEl = document.getElementById('setup-err');
+  errEl.style.display='none';
+  if(!p||!s||!t){ errEl.textContent='Please fill all three fields! 🙈'; errEl.style.display='block'; return; }
+  KEYS.save(p,s,t);
+  emailjs.init(p);
+  showToast('🎉 EmailJS configured! Let\'s party!');
+  showScreen('auth-screen');
+  checkConfigWarning();
+}
+function skipSetup(){
+  if(!KEYS.ok){ showToast('⚠️ No keys saved yet — emails won\'t send!'); }
+  showScreen('auth-screen');
+  checkConfigWarning();
+}
+function goToSetup(){
+  if(KEYS.ok){
+    document.getElementById('ejs-public').value   = KEYS.pub;
+    document.getElementById('ejs-service').value  = KEYS.svc;
+    document.getElementById('ejs-template').value = KEYS.tpl;
+    goSetupStep(4);
+  } else {
+    goSetupStep(1);
+  }
+  showScreen('setup-screen');
+}
+function checkConfigWarning(){
+  // Keys are hardcoded — no warning needed
+  const warn = document.getElementById('config-warn');
+  if(warn) warn.style.display = 'none';
+}
+
+// ── AUTH ──
+function switchTab(tab){
+  document.querySelectorAll('.auth-tab').forEach((t,i)=>{
+    t.classList.toggle('active',(i===0&&tab==='login')||(i===1&&tab==='signup'));
+  });
+  document.getElementById('login-form').style.display  = tab==='login'  ? 'block':'none';
+  document.getElementById('signup-form').style.display = tab==='signup' ? 'block':'none';
+}
+function handleSignup(){
+  const name  = document.getElementById('su-name').value.trim();
+  const email = document.getElementById('su-email').value.trim().toLowerCase();
+  const pass  = document.getElementById('su-pass').value;
+  const err   = document.getElementById('su-err');
+  const suc   = document.getElementById('su-suc');
+  err.style.display='none'; suc.style.display='none';
+  if(!name||!email||!pass){ showErr(err,'Fill all fields! 🙈'); return; }
+  if(!/\S+@\S+\.\S+/.test(email)){ showErr(err,'That email looks sus 👀'); return; }
+  if(pass.length<4){ showErr(err,'Password too short! Min 4 chars 😬'); return; }
+  const users = getUsers();
+  if(users[email]){ showErr(err,'Already registered! Try login 😊'); return; }
+  users[email]={name,pass,responded:false}; saveUsers(users);
+  suc.textContent='🎉 Account created! Now login!'; suc.style.display='block';
+  setTimeout(()=>switchTab('login'),1500);
+}
+function handleLogin(){
+  const email = document.getElementById('login-email').value.trim().toLowerCase();
+  const pass  = document.getElementById('login-password').value;
+  const err   = document.getElementById('login-err');
+  err.style.display='none';
+  if(!email||!pass){ showErr(err,'Fill in the blanks! 🖊️'); return; }
+  const users = getUsers();
+  if(!users[email]){ showErr(err,"Can't find you! Sign up first 🙃"); return; }
+  if(users[email].pass!==pass){ showErr(err,'Wrong password! 🤔'); return; }
+  currentUser={email,...users[email]};
+  document.getElementById('welcome-msg').textContent=`Welcome, ${currentUser.name}! Ready to party? 🥳`;
+  showScreen('calendar-screen');
+  buildCalendar();
+}
+function logout(){ currentUser=null; showScreen('auth-screen'); }
+function showErr(el,msg){ el.textContent=msg; el.style.display='block'; }
+
+// ── CALENDAR ──
+function buildCalendar(){
+  const grid=document.getElementById('cal-grid');
+  grid.innerHTML='';
+  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d=>{
+    const h=document.createElement('div'); h.className='cal-day-header'; h.textContent=d; grid.appendChild(h);
+  });
+  // May 1 2026 = Friday = index 5
+  for(let i=0;i<5;i++){ const e=document.createElement('div'); e.className='cal-day empty'; grid.appendChild(e); }
+  for(let d=1;d<=31;d++){
+    const cell=document.createElement('div');
+    if(d===1){
+      cell.className='cal-day birthday';
+      cell.innerHTML='<span class="bday-num">1</span><span class="bday-emojis">🎂🎉🎈</span>';
+      cell.onclick=()=>document.getElementById('rsvp-modal').classList.add('active');
+      cell.title='Click me! 🥳';
+    } else {
+      cell.className='cal-day normal'; cell.textContent=d;
+    }
+    grid.appendChild(cell);
+  }
+}
+
+// ── RSVP ──
+async function handleChoice(choice){
+  document.getElementById('rsvp-modal').classList.remove('active');
+  const isYes = choice==='yes';
+
+  // Store response
+  const entry={
+    name: currentUser.name,
+    email: currentUser.email,
+    choice: isYes ? 'Celebrate at Biju\'s Place' : 'Bole dite partis asbo na tahole ato kosto kortam na',
+    timestamp: new Date().toISOString()
+  };
+  const responses = getResponses(); responses.push(entry); saveResp(responses);
+  const usersMap = getUsers(); usersMap[currentUser.email].responded=true; saveUsers(usersMap);
+
+  // Show sending screen
+  showScreen('success-screen');
+  document.getElementById('success-card').innerHTML=`
+    <div style="text-align:center;padding:50px 20px;">
+      <div style="font-size:3rem;margin-bottom:16px;">📬</div>
+      <div style="font-family:'Fredoka One',cursive;font-size:1.6rem;color:var(--purple);margin-bottom:10px;">
+        Sending your invites to your emails…
+      </div>
+      <div style="color:#888;font-weight:700;">Dispatching to <strong>${currentUser.email}</strong> 🕊️</div>
+    </div>`;
+  // ── GIF URL: yes_gif.gif → "Yes" case | no_gif.gif → "No" case ──
+  const gifUrl = isYes
+    ? `${window.location.origin}/yes_gif.gif`
+    : `${window.location.origin}/no_gif.gif`;
+  // ── EMAIL 1: Invite → logged-in user's email ──
+  const friendEmail = currentUser.email;   // e.g. bijoylaxmichoudhury0105@gmail.com
+  const coupon = isYes
+    ? `🎉 Congratulations, ${currentUser.name}!\n\nYou have won a free coupon for dinner party at:\n\n📍 208, Balaka Natun Bazar, Manasipara, North Dumdum, Kolkata, West Bengal 700065\n\n⏰ Please note — Gate will be open 5:00 PM IST onwards.\nIf you come before that, ENTER AT YOUR OWN RISK due to toooo high temperature outside and inside our flat! 🌡️🔥\n\nSee you soon! 🥳`
+    : `😏 Unfortunately, ${currentUser.name}…\n\nYou have STILL won a free coupon for dinner party at:\n\n📍 208, Balaka Natun Bazar, Manasipara, North Dumdum, Kolkata, West Bengal 700065\n\n⏰ Please note — Gate will be open 5:00 PM IST onwards.\nIf you come before that, ENTER AT YOUR OWN RISK due to toooo high temperature outside and inside our flat! 🌡️🔥\n\nWe'll be waiting! 😉`;
+
+  const friendSubj = isYes
+    ? `🎉 You're Coming to Biju's Birthday Bash! Here's Your Coupon!`
+    : `😅 Your "Accidental" Coupon for Biju's Birthday Bash!`;
+
+  // ── EMAIL 2: RSVP summary → host ──
+  const table = responses.map((r,i)=>
+    `${i+1}. ${r.name} | ${r.email} | ${r.choice} | ${new Date(r.timestamp).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})}`
+  ).join('\n');
+  const hostMsg =
+    `🎂 PartyPop RSVP Summary\n` +
+    `Generated: ${new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})}\n\n` +
+    `${'─'.repeat(55)}\n\n` +
+    `${table}\n\n` +
+    `${'─'.repeat(55)}\n` +
+    `Total responses so far: ${responses.length}\n\n` +
+    `Latest response:\n` +
+    `👤 Name   : ${entry.name}\n` +
+    `📧 Email  : ${entry.email}\n` +
+    `✅ Choice  : ${entry.choice}`;
+
+  let friendOk=false, hostOk=false, friendErr='', hostErr='';
+
+  // ── Send to FRIEND (their login email) ──
+  try {
+    const res = await emailjs.send(KEYS.svc, KEYS.tpl, {
+      to_email : friendEmail,
+      to_name  : currentUser.name,
+      subject  : friendSubj,
+      message  : coupon,
+      gif_url  : gifUrl
+    });
+    console.log('Friend email result:', res);
+    friendOk = (res.status === 200);
+    if(!friendOk) friendErr = `Status ${res.status}: ${res.text}`;
+  } catch(e){
+    console.error('Friend email error:', e);
+    // Extract the most useful error message from EmailJS
+    if(e && e.text) friendErr = e.text;
+    else if(e && e.message) friendErr = e.message;
+    else if(typeof e === 'string') friendErr = e;
+    else friendErr = JSON.stringify(e);
+  }
+
+  // ── Send to HOST (boochou0105@gmail.com) ──
+  try {
+    const res = await emailjs.send(KEYS.svc, KEYS.tpl, {
+      to_email : HOST_EMAIL,
+      to_name  : 'Bijoylaxmi (Host)',
+      subject  : `PartyPop RSVP Update — ${responses.length} response(s)`,
+      message  : hostMsg
+    });
+    console.log('Host email result:', res);
+    hostOk = (res.status === 200);
+    if(!hostOk) hostErr = `Status ${res.status}: ${res.text}`;
+  } catch(e){
+    console.error('Host email error:', e);
+    if(e && e.text) hostErr = e.text;
+    else if(e && e.message) hostErr = e.message;
+    else if(typeof e === 'string') hostErr = e;
+    else hostErr = JSON.stringify(e);
+  }
+
+  showResultScreen(isYes, friendOk, hostOk, friendErr, hostErr, friendEmail);
+}
+
+function showResultScreen(isYes, friendOk, hostOk, friendErr, hostErr, friendEmail){
+  const emoji = isYes ? '🎉🥳🎊' : '😅😬🎈';
+  const title = isYes ? "Invite is sent to your email " : "Still invite is sent to you email...Do you really think you have the option to choose NO?😏";
+  const msg   = isYes
+    ? "Great choice! Please check your mail for further details.💃"
+    : "Please check your mail for further details. 😏";
+
+  // Detect the "both sent but wrong address" problem
+  const bothSentSameAddr = friendOk && hostOk && friendEmail === HOST_EMAIL;
+
+  const friendStatus = friendOk
+    ? `<span style="color:var(--teal);">✅ Sent to <strong>${friendEmail}</strong></span>`
+    : `<span style="color:#e74c3c;">❌ Failed: <em>${friendErr}</em></span>`;
+  const hostStatus = hostOk
+    ? `<span style="color:var(--teal);">✅ RSVP summary sent to <strong>${HOST_EMAIL}</strong></span>`
+    : `<span style="color:#e74c3c;">❌ Failed: <em>${hostErr}</em></span>`;
+
+  // Show a helpful fix banner if either email failed
+  const anyFailed = !friendOk || !hostOk;
+  const failBanner = anyFailed ? `
+    <div style="background:#fff3cd;border:2px solid #f39c12;border-radius:14px;padding:14px 16px;margin-bottom:16px;font-size:.85rem;color:#856404;font-weight:700;line-height:1.8;">
+      ⚠️ <strong>Email failed — most common fixes:</strong><br>
+      1️⃣ In <a href="https://dashboard.emailjs.com/admin/templates" target="_blank" style="color:#856404;">EmailJS Template</a>, the <strong>"To Email"</strong> field must say <code style="background:#856404;color:#fff;padding:1px 5px;border-radius:4px;">{{to_email}}</code><br>
+      2️⃣ Your EmailJS <strong>Gmail service</strong> must be connected &amp; authorized<br>
+      3️⃣ Check your <strong>monthly send limit</strong> (free plan = 200/month)<br>
+      4️⃣ Open browser console (F12) for the full error details
+    </div>` : '';
+
+  document.getElementById('success-card').innerHTML=`
+    <div class="success-emoji">${emoji}</div>
+    <div class="success-title">${title}</div>
+    <div class="success-text">${msg}</div>
+    ${failBanner}
+    <div class="info-box green">
+      <strong>📧 Invite Email → You</strong><br>${friendStatus}
+    </div>
+    <div class="info-box orange">
+      <strong>📊 RSVP Summary → Host</strong><br>${hostStatus}
+    </div>
+    <button class="btn-back" onclick="backToCal()">🗓️ Back to Calendar</button>`;
+
+  if(friendOk && hostOk) showToast('📧 Both emails sent! Check your inboxes! ✨');
+  else if(friendOk)      showToast('📧 Invite sent! RSVP summary failed.');
+  else if(hostOk)        showToast('📋 RSVP recorded. Invite email failed.');
+}
+
+function backToCal(){ showScreen('calendar-screen'); }
+
+// ── FORGOT PASSWORD ──
+function openFP(){
+  document.getElementById('fp1').classList.add('active');
+  document.getElementById('fp2').classList.remove('active');
+  document.getElementById('fp-email').value='';
+  document.getElementById('fp-err').style.display='none';
+  document.getElementById('fp-overlay').classList.add('active');
+}
+function closeFP(){ document.getElementById('fp-overlay').classList.remove('active'); }
+function handleFP1(){
+  const email=document.getElementById('fp-email').value.trim().toLowerCase();
+  const err=document.getElementById('fp-err'); err.style.display='none';
+  if(!email){ err.textContent="Email can't be empty! 🙈"; err.style.display='block'; return; }
+  if(!/\S+@\S+\.\S+/.test(email)){ err.textContent="Doesn't look like an email 👀"; err.style.display='block'; return; }
+  const users = getUsers();
+  if(!users[email]){ err.textContent="No account found! Did you sign up? 🤷"; err.style.display='block'; return; }
+  document.getElementById('fp-pw-show').textContent=users[email].pass;
+  document.getElementById('fp1').classList.remove('active');
+  document.getElementById('fp2').classList.add('active');
+}
+function fpLogin(){
+  const email=document.getElementById('fp-email').value.trim().toLowerCase();
+  closeFP();
+  if(email) document.getElementById('login-email').value=email;
+  document.getElementById('login-password').focus();
+  showToast('🔑 Password found! Now login and let\'s party! 🎉');
+}
+
+// ── SCREENS ──
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ── TOAST ──
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),4000);
+}
+
+// ── BACKGROUND FX ──
+function buildConfetti(){
+  const canvas=document.getElementById('bgCanvas');
+  const colors=['#FFD93D','#FF6B9D','#9B59B6','#00C9A7','#FF6B35','#4ECDC4','#FF8C42','#C9F0FF'];
+  for(let i=0;i<40;i++){
+    const el=document.createElement('div'); el.className='confetti-piece';
+    el.style.cssText=`left:${Math.random()*100}%;background:${colors[Math.floor(Math.random()*colors.length)]};
+      width:${6+Math.random()*10}px;height:${6+Math.random()*10}px;
+      border-radius:${Math.random()>.5?'50%':'3px'};
+      animation-duration:${4+Math.random()*6}s;animation-delay:${Math.random()*6}s;`;
+    canvas.appendChild(el);
+  }
+}
+function buildBalloons(){
+  const emojis=['🎈','🎉','🥳','🎊','💫','⭐'];
+  for(let i=0;i<8;i++){
+    const el=document.createElement('div'); el.className='balloon';
+    el.textContent=emojis[Math.floor(Math.random()*emojis.length)];
+    el.style.cssText=`left:${Math.random()*95}%;font-size:${1.5+Math.random()*2}rem;
+      animation-duration:${8+Math.random()*10}s;animation-delay:${Math.random()*8}s;`;
+    document.body.appendChild(el);
+  }
+}
+</script>
+</body>
+</html>
